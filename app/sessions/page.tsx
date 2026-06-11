@@ -23,7 +23,7 @@ export default function SessionsPage() {
 
   useEffect(() => { load(); }, []);
 
-  async function handleAdd(e: React.FormEvent) {
+  async function handleAdd(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!form.date || !form.costPerPerson) return;
     setSaving(true);
@@ -45,10 +45,12 @@ export default function SessionsPage() {
     setSessions((prev) => prev.filter((s) => s.id !== id));
   }
 
+  const inputCls = 'w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500';
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Sessions</h1>
+        <h1 className="text-2xl font-bold text-gray-100">Sessions</h1>
         <button
           onClick={() => setShowForm(!showForm)}
           className="bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
@@ -58,21 +60,21 @@ export default function SessionsPage() {
       </div>
 
       {showForm && (
-        <form onSubmit={handleAdd} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
-          <h2 className="font-semibold text-gray-900">New Session</h2>
+        <form onSubmit={handleAdd} className="bg-gray-900 rounded-2xl border border-gray-800 shadow-sm p-5 space-y-4">
+          <h2 className="font-semibold text-gray-100">New Session</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
+              <label className="block text-xs font-medium text-gray-400 mb-1">Date</label>
               <input
                 type="date"
                 required
                 value={form.date}
                 onChange={(e) => setForm({ ...form, date: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className={inputCls}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Cost per person (RM)</label>
+              <label className="block text-xs font-medium text-gray-400 mb-1">Cost per person (RM)</label>
               <input
                 type="number"
                 required
@@ -80,18 +82,18 @@ export default function SessionsPage() {
                 step="0.50"
                 value={form.costPerPerson}
                 onChange={(e) => setForm({ ...form, costPerPerson: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className={inputCls}
                 placeholder="e.g. 15"
               />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Notes (optional)</label>
+            <label className="block text-xs font-medium text-gray-400 mb-1">Notes (optional)</label>
             <input
               type="text"
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className={inputCls}
               placeholder="e.g. Petaling Jaya court"
             />
           </div>
@@ -106,7 +108,7 @@ export default function SessionsPage() {
             <button
               type="button"
               onClick={() => setShowForm(false)}
-              className="text-gray-600 hover:text-gray-900 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+              className="text-gray-400 hover:text-gray-100 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"
             >
               Cancel
             </button>
@@ -115,15 +117,15 @@ export default function SessionsPage() {
       )}
 
       {loading ? (
-        <div className="text-gray-400 text-sm py-8 text-center">Loading...</div>
+        <div className="text-gray-500 text-sm py-8 text-center">Loading...</div>
       ) : sessions.length === 0 ? (
-        <div className="text-gray-400 text-sm py-8 text-center">No sessions yet.</div>
+        <div className="text-gray-500 text-sm py-8 text-center">No sessions yet.</div>
       ) : (
         <div className="space-y-3">
           {sessions.map((s) => (
-            <div key={s.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-4 flex items-center justify-between gap-4">
+            <div key={s.id} className="bg-gray-900 rounded-2xl border border-gray-800 shadow-sm px-5 py-4 flex items-center justify-between gap-4">
               <div className="min-w-0">
-                <div className="font-semibold text-gray-900 text-sm">{fmt(s.date)}</div>
+                <div className="font-semibold text-gray-100 text-sm">{fmt(s.date)}</div>
                 <div className="text-xs text-gray-500 mt-0.5">
                   RM {s.costPerPerson}/person · {s.attendeeIds.length} attended
                   {s.notes && ` · ${s.notes}`}
@@ -132,13 +134,13 @@ export default function SessionsPage() {
               <div className="flex items-center gap-2 shrink-0">
                 <Link
                   href={`/sessions/${s.id}`}
-                  className="text-green-600 hover:text-green-700 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-green-50 transition-colors"
+                  className="text-green-500 hover:text-green-400 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-green-950 transition-colors"
                 >
                   Attendance
                 </Link>
                 <button
                   onClick={() => handleDelete(s.id)}
-                  className="text-gray-400 hover:text-red-500 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                  className="text-gray-600 hover:text-red-400 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-red-950 transition-colors"
                 >
                   Delete
                 </button>

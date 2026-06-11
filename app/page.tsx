@@ -45,7 +45,7 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+      <h1 className="text-2xl font-bold text-gray-100">Dashboard</h1>
 
       <div className="grid grid-cols-3 gap-4">
         <StatCard label="Sessions" value={totalSessions} />
@@ -54,33 +54,33 @@ export default function DashboardPage() {
       </div>
 
       {loading ? (
-        <div className="text-gray-400 text-sm py-8 text-center">Loading...</div>
+        <div className="text-gray-500 text-sm py-8 text-center">Loading...</div>
       ) : stats.length === 0 ? (
-        <div className="text-gray-400 text-sm py-8 text-center">
+        <div className="text-gray-500 text-sm py-8 text-center">
           No players yet — add some in the Players tab.
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-gray-900 rounded-2xl shadow-sm border border-gray-800 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Player</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-600">Sessions</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-600">Owed (RM)</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-600">Paid (RM)</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-600">Balance</th>
+                <tr className="border-b border-gray-800 bg-gray-800/50">
+                  <th className="text-left px-4 py-3 font-semibold text-gray-400">Player</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-400">Sessions</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-400">Owed (RM)</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-400">Paid (RM)</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-400">Balance</th>
                 </tr>
               </thead>
               <tbody>
                 {stats.map((s, i) => (
-                  <tr key={s.player.id} className={`border-b border-gray-50 ${i % 2 === 0 ? '' : 'bg-gray-50/50'}`}>
-                    <td className="px-4 py-3 font-medium text-gray-900">{s.player.name}</td>
-                    <td className="px-4 py-3 text-right text-gray-700">{s.sessionsAttended}</td>
-                    <td className="px-4 py-3 text-right text-gray-700">{s.amountOwed.toFixed(0)}</td>
-                    <td className="px-4 py-3 text-right text-gray-700">{s.amountPaid.toFixed(0)}</td>
+                  <tr key={s.player.id} className={`border-b border-gray-800/50 ${i % 2 === 0 ? '' : 'bg-gray-800/20'}`}>
+                    <td className="px-4 py-3 font-medium text-gray-100">{s.player.name}</td>
+                    <td className="px-4 py-3 text-right text-gray-300">{s.sessionsAttended}</td>
+                    <td className="px-4 py-3 text-right text-gray-300">{s.amountOwed.toFixed(0)}</td>
+                    <td className="px-4 py-3 text-right text-gray-300">{s.amountPaid.toFixed(0)}</td>
                     <td className="px-4 py-3 text-right">
-                      <span className={`font-semibold ${s.balance >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                      <span className={`font-semibold ${s.balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {s.balance >= 0 ? '+' : ''}{s.balance.toFixed(0)}
                       </span>
                     </td>
@@ -97,8 +97,12 @@ export default function DashboardPage() {
 
 function StatCard({ label, value, highlight }: { label: string; value: string | number; highlight?: boolean }) {
   return (
-    <div className={`rounded-2xl p-4 border ${highlight ? 'bg-red-50 border-red-100' : 'bg-white border-gray-200'} shadow-sm`}>
-      <div className={`text-2xl font-bold ${highlight ? 'text-red-600' : 'text-gray-900'}`}>{value}</div>
+    <div className={`rounded-2xl p-4 border shadow-sm ${
+      highlight
+        ? 'bg-red-950/50 border-red-900'
+        : 'bg-gray-900 border-gray-800'
+    }`}>
+      <div className={`text-2xl font-bold ${highlight ? 'text-red-400' : 'text-gray-100'}`}>{value}</div>
       <div className="text-xs text-gray-500 mt-0.5">{label}</div>
     </div>
   );

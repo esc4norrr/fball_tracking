@@ -17,7 +17,7 @@ export default function PlayersPage() {
 
   useEffect(() => { load(); }, []);
 
-  async function handleAdd(e: React.FormEvent) {
+  async function handleAdd(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!name.trim()) return;
     setSaving(true);
@@ -35,16 +35,16 @@ export default function PlayersPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Players</h1>
+      <h1 className="text-2xl font-bold text-gray-100">Players</h1>
 
-      <form onSubmit={handleAdd} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-        <h2 className="font-semibold text-gray-900 mb-3">Add Player</h2>
+      <form onSubmit={handleAdd} className="bg-gray-900 rounded-2xl border border-gray-800 shadow-sm p-5">
+        <h2 className="font-semibold text-gray-100 mb-3">Add Player</h2>
         <div className="flex gap-3">
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
             placeholder="Player name"
           />
           <button
@@ -58,22 +58,22 @@ export default function PlayersPage() {
       </form>
 
       {loading ? (
-        <div className="text-gray-400 text-sm py-8 text-center">Loading...</div>
+        <div className="text-gray-500 text-sm py-8 text-center">Loading...</div>
       ) : players.length === 0 ? (
-        <div className="text-gray-400 text-sm py-8 text-center">No players yet.</div>
+        <div className="text-gray-500 text-sm py-8 text-center">No players yet.</div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="bg-gray-900 rounded-2xl border border-gray-800 shadow-sm overflow-hidden">
           {players.map((p, i) => (
             <div
               key={p.id}
               className={`flex items-center justify-between px-5 py-3.5 ${
-                i < players.length - 1 ? 'border-b border-gray-100' : ''
+                i < players.length - 1 ? 'border-b border-gray-800' : ''
               }`}
             >
-              <span className="text-sm font-medium text-gray-900">{p.name}</span>
+              <span className="text-sm font-medium text-gray-100">{p.name}</span>
               <button
                 onClick={() => handleDelete(p.id, p.name)}
-                className="text-gray-400 hover:text-red-500 text-sm px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                className="text-gray-600 hover:text-red-400 text-sm px-2 py-1 rounded hover:bg-red-950 transition-colors"
               >
                 Remove
               </button>
@@ -81,7 +81,7 @@ export default function PlayersPage() {
           ))}
         </div>
       )}
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-gray-600">
         {players.length} player{players.length !== 1 ? 's' : ''} total
       </p>
     </div>
