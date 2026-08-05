@@ -122,12 +122,15 @@ export default function SessionsPage() {
         <div className="text-gray-500 text-sm py-8 text-center">No sessions yet.</div>
       ) : (
         <div className="space-y-3">
-          {sessions.map((s) => (
+          {sessions.map((s) => {
+            const guestTotal = Object.values(s.guestCounts ?? {}).reduce((sum, n) => sum + n, 0);
+            return (
             <div key={s.id} className="bg-gray-900 rounded-2xl border border-gray-800 shadow-sm px-5 py-4 flex items-center justify-between gap-4">
               <div className="min-w-0">
                 <div className="font-semibold text-gray-100 text-sm">{fmt(s.date)}</div>
                 <div className="text-xs text-gray-500 mt-0.5">
                   RM {s.costPerPerson}/person · {s.attendeeIds.length} attended
+                  {guestTotal > 0 && ` + ${guestTotal} guest${guestTotal !== 1 ? 's' : ''}`}
                   {s.notes && ` · ${s.notes}`}
                 </div>
               </div>
@@ -146,7 +149,8 @@ export default function SessionsPage() {
                 </button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

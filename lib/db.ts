@@ -45,6 +45,7 @@ export async function getSessions(): Promise<Session[]> {
     costPerPerson: d.data().costPerPerson ?? 0,
     notes: d.data().notes ?? '',
     attendeeIds: d.data().attendeeIds ?? [],
+    guestCounts: d.data().guestCounts ?? {},
   }));
 }
 
@@ -57,6 +58,7 @@ export async function getSession(id: string): Promise<Session | null> {
     costPerPerson: snap.data().costPerPerson ?? 0,
     notes: snap.data().notes ?? '',
     attendeeIds: snap.data().attendeeIds ?? [],
+    guestCounts: snap.data().guestCounts ?? {},
   };
 }
 

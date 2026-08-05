@@ -10,6 +10,7 @@ export interface Session {
   costPerPerson: number;
   notes: string;
   attendeeIds: string[];
+  guestCounts?: Record<string, number>; // playerId -> number of guests (+1s) they brought
 }
 
 export interface Payment {
@@ -24,6 +25,7 @@ export interface PlayerStats {
   player: Player;
   sessionsAttended: number;
   amountOwed: number;
+  guestAmountOwed: number; // portion of amountOwed from guests (+1s) this player brought
   amountPaid: number;
   balance: number; // positive = credit, negative = owes
 }

@@ -6,7 +6,12 @@ import { PlayerStats, Player, Session, Payment } from '@/lib/types';
 function computeStats(players: Player[], sessions: Session[], payments: Payment[]): PlayerStats[] {
   return players.map((player) => {
     const attended = sessions.filter((s) => s.attendeeIds.includes(player.id));
-    const amountOwed = attended.reduce((sum, s) => sum + s.costPerPerson, 0);
+    const ownOwed = attended.reduce((sum, s) => sum + s.costPerPerson, 0);
+    const guestAmountOwed = attended.reduce(
+      (sum, s) => sum + s.costPerPerson * (s.guestCounts?.[player.id] ?? 0),
+      0
+    );
+    const amountOwed = ownOwed + guestAmountOwed;
     const amountPaid = payments
       .filter((p) => p.playerId === player.id)
       .reduce((sum, p) => sum + p.amount, 0);
@@ -14,14 +19,35 @@ function computeStats(players: Player[], sessions: Session[], payments: Payment[
       player,
       sessionsAttended: attended.length,
       amountOwed,
+      guestAmountOwed,
       amountPaid,
       balance: amountPaid - amountOwed,
     };
   });
 }
 
+// A player is auto-hidden once they've missed the last 3 sessions and are fully settled up.
+const RECENT_SESSIONS_WINDOW = 3;
+const BALANCE_EPSILON = 0.005;
+
+function computeVisibility(players: PlayerStats[], sessions: Session[]): Set<string> {
+  const recentSessionIds = new Set(sessions.slice(0, RECENT_SESSIONS_WINDOW).map((s) => s.id));
+  const recentAttendeeIds = new Set(
+    sessions.filter((s) => recentSessionIds.has(s.id)).flatMap((s) => s.attendeeIds)
+  );
+  const visible = new Set<string>();
+  for (const stat of players) {
+    if (recentAttendeeIds.has(stat.player.id) || Math.abs(stat.balance) > BALANCE_EPSILON) {
+      visible.add(stat.player.id);
+    }
+  }
+  return visible;
+}
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<PlayerStats[]>([]);
+  const [visibleIds, setVisibleIds] = useState<Set<string>>(new Set());
+  const [showAll, setShowAll] = useState(false);
   const [loading, setLoading] = useState(true);
   const [totalSessions, setTotalSessions] = useState(0);
 
@@ -33,7 +59,9 @@ export default function DashboardPage() {
         getPayments(),
       ]);
       setTotalSessions(sessions.length);
-      setStats(computeStats(players, sessions, payments));
+      const computed = computeStats(players, sessions, payments);
+      setStats(computed);
+      setVisibleIds(computeVisibility(computed, sessions));
       setLoading(false);
     }
     load();
@@ -42,6 +70,9 @@ export default function DashboardPage() {
   const totalOwed = stats.reduce((s, p) => s + p.amountOwed, 0);
   const totalPaid = stats.reduce((s, p) => s + p.amountPaid, 0);
   const totalOutstanding = Math.max(0, totalOwed - totalPaid);
+
+  const visibleStats = showAll ? stats : stats.filter((s) => visibleIds.has(s.player.id));
+  const hiddenCount = stats.length - visibleStats.length;
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
@@ -73,11 +104,21 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {stats.map((s, i) => (
+                {visibleStats.map((s, i) => (
                   <tr key={s.player.id} className={`border-b border-gray-800/50 ${i % 2 === 0 ? '' : 'bg-gray-800/20'}`}>
                     <td className="px-4 py-3 font-medium text-gray-100">{s.player.name}</td>
                     <td className="px-4 py-3 text-right text-gray-300">{s.sessionsAttended}</td>
-                    <td className="px-4 py-3 text-right text-gray-300">{s.amountOwed.toFixed(0)}</td>
+                    <td className="px-4 py-3 text-right text-gray-300">
+                      {s.amountOwed.toFixed(0)}
+                      {s.guestAmountOwed > 0 && (
+                        <span
+                          className="text-amber-500 ml-1"
+                          title={`Includes RM ${s.guestAmountOwed.toFixed(0)} from guests they brought`}
+                        >
+                          (+{s.guestAmountOwed.toFixed(0)})
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-right text-gray-300">{s.amountPaid.toFixed(0)}</td>
                     <td className="px-4 py-3 text-right">
                       <span className={`font-semibold ${s.balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
@@ -89,6 +130,18 @@ export default function DashboardPage() {
               </tbody>
             </table>
           </div>
+          {hiddenCount > 0 && (
+            <div className="px-4 py-3 border-t border-gray-800 bg-gray-800/30">
+              <button
+                onClick={() => setShowAll((v) => !v)}
+                className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+              >
+                {showAll
+                  ? 'Hide settled/inactive players'
+                  : `Show ${hiddenCount} settled player${hiddenCount !== 1 ? 's' : ''} inactive for 3+ sessions`}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

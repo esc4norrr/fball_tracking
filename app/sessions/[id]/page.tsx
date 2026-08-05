@@ -14,6 +14,7 @@ export default function SessionDetailPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [attendeeIds, setAttendeeIds] = useState<string[]>([]);
+  const [guestCounts, setGuestCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -25,6 +26,7 @@ export default function SessionDetailPage() {
       setSession(sess);
       setPlayers(pl);
       setAttendeeIds(sess.attendeeIds);
+      setGuestCounts(sess.guestCounts ?? {});
       setLoading(false);
     }
     load();
@@ -34,15 +36,40 @@ export default function SessionDetailPage() {
     setAttendeeIds((prev) =>
       prev.includes(playerId) ? prev.filter((x) => x !== playerId) : [...prev, playerId]
     );
+    // Guests only count for attending players — clear them when unchecking.
+    setGuestCounts((prev) => {
+      if (attendeeIds.includes(playerId) && prev[playerId]) {
+        const next = { ...prev };
+        delete next[playerId];
+        return next;
+      }
+      return prev;
+    });
+    setSaved(false);
+  }
+
+  function setGuestCount(playerId: string, count: number) {
+    const clamped = Math.max(0, count);
+    setGuestCounts((prev) => {
+      const next = { ...prev };
+      if (clamped === 0) {
+        delete next[playerId];
+      } else {
+        next[playerId] = clamped;
+      }
+      return next;
+    });
     setSaved(false);
   }
 
   async function handleSave() {
     setSaving(true);
-    await updateSession(id, { attendeeIds });
+    await updateSession(id, { attendeeIds, guestCounts });
     setSaving(false);
     setSaved(true);
   }
+
+  const totalGuests = Object.values(guestCounts).reduce((sum, n) => sum + n, 0);
 
   if (loading) {
     return <div className="max-w-5xl mx-auto px-4 py-6 text-gray-500 text-sm">Loading...</div>;
@@ -68,7 +95,9 @@ export default function SessionDetailPage() {
       <div className="bg-gray-900 rounded-2xl border border-gray-800 shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-gray-100">
-            Attendance <span className="text-gray-500 font-normal text-sm">({attendeeIds.length}/{players.length})</span>
+            Attendance <span className="text-gray-500 font-normal text-sm">
+              ({attendeeIds.length}/{players.length}{totalGuests > 0 ? ` + ${totalGuests} guest${totalGuests !== 1 ? 's' : ''}` : ''})
+            </span>
           </h2>
           <div className="flex gap-2">
             <button
@@ -92,25 +121,49 @@ export default function SessionDetailPage() {
           <div className="space-y-2">
             {players.map((p) => {
               const checked = attendeeIds.includes(p.id);
+              const guests = guestCounts[p.id] ?? 0;
               return (
-                <label
+                <div
                   key={p.id}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer border transition-colors ${
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-colors ${
                     checked
                       ? 'bg-green-950/50 border-green-800'
                       : 'bg-gray-800/50 border-gray-700 hover:bg-gray-800'
                   }`}
                 >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggle(p.id)}
-                    className="w-4 h-4 accent-green-500"
-                  />
-                  <span className={`text-sm font-medium ${checked ? 'text-green-300' : 'text-gray-300'}`}>
-                    {p.name}
-                  </span>
-                </label>
+                  <label className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggle(p.id)}
+                      className="w-4 h-4 accent-green-500 shrink-0"
+                    />
+                    <span className={`text-sm font-medium truncate ${checked ? 'text-green-300' : 'text-gray-300'}`}>
+                      {p.name}
+                    </span>
+                  </label>
+                  {checked && (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-xs text-gray-500">+1s</span>
+                      <button
+                        type="button"
+                        onClick={() => setGuestCount(p.id, guests - 1)}
+                        disabled={guests === 0}
+                        className="w-6 h-6 flex items-center justify-center rounded-md bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 transition-colors"
+                      >
+                        −
+                      </button>
+                      <span className="w-4 text-center text-sm font-semibold text-gray-100">{guests}</span>
+                      <button
+                        type="button"
+                        onClick={() => setGuestCount(p.id, guests + 1)}
+                        className="w-6 h-6 flex items-center justify-center rounded-md bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors"
+                      >
+                        +
+                      </button>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
