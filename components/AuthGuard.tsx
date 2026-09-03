@@ -23,8 +23,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (!ready) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-950">
-        <div className="text-gray-500 text-sm">Loading...</div>
+      <div className="min-h-[100dvh] flex items-center justify-center bg-surface">
+        <div className="w-6 h-6 rounded-full border-2 border-border border-t-accent animate-spin" />
       </div>
     );
   }
@@ -32,7 +32,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   return (
     <>
       {pathname !== '/login' && <Nav />}
-      <main className="flex-1 bg-gray-50 dark:bg-gray-950">{children}</main>
+      <main className="flex-1 bg-surface">{children}</main>
     </>
   );
 }

@@ -3,6 +3,12 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getSession, getPlayers, updateSession } from '@/lib/db';
 import { Session, Player } from '@/lib/types';
+import { ArrowLeft, Check, Minus, Plus, Users } from '@phosphor-icons/react';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { useToast } from '@/components/ui/Toast';
 
 function fmt(date: Date) {
   return date.toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -11,13 +17,14 @@ function fmt(date: Date) {
 export default function SessionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const toast = useToast();
   const [session, setSession] = useState<Session | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [attendeeIds, setAttendeeIds] = useState<string[]>([]);
   const [guestCounts, setGuestCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -45,7 +52,7 @@ export default function SessionDetailPage() {
       }
       return prev;
     });
-    setSaved(false);
+    setDirty(true);
   }
 
   function setGuestCount(playerId: string, count: number) {
@@ -59,20 +66,31 @@ export default function SessionDetailPage() {
       }
       return next;
     });
-    setSaved(false);
+    setDirty(true);
   }
 
   async function handleSave() {
     setSaving(true);
     await updateSession(id, { attendeeIds, guestCounts });
     setSaving(false);
-    setSaved(true);
+    setDirty(false);
+    toast.success('Attendance saved');
   }
 
   const totalGuests = Object.values(guestCounts).reduce((sum, n) => sum + n, 0);
 
   if (loading) {
-    return <div className="max-w-5xl mx-auto px-4 py-6 text-gray-500 text-sm">Loading...</div>;
+    return (
+      <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-7 w-64" />
+        <Card className="p-5 space-y-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-11 w-full rounded-xl" />
+          ))}
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -80,35 +98,37 @@ export default function SessionDetailPage() {
       <div>
         <button
           onClick={() => router.push('/sessions')}
-          className="text-sm text-gray-500 hover:text-gray-300 mb-3 inline-block transition-colors"
+          className="flex items-center gap-1 text-sm text-text-faint hover:text-text-muted mb-3 transition-colors"
         >
-          ← Sessions
+          <ArrowLeft size={14} />
+          Sessions
         </button>
-        <h1 className="text-2xl font-bold text-gray-100">{session && fmt(session.date)}</h1>
+        <h1 className="text-xl font-semibold text-text">{session && fmt(session.date)}</h1>
         {session && (
-          <p className="text-gray-500 text-sm mt-1">
+          <p className="text-text-faint text-sm mt-1">
             RM {session.costPerPerson} per person{session.notes ? ` · ${session.notes}` : ''}
           </p>
         )}
       </div>
 
-      <div className="bg-gray-900 rounded-2xl border border-gray-800 shadow-sm p-5">
+      <Card className="p-5">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-gray-100">
-            Attendance <span className="text-gray-500 font-normal text-sm">
+          <h2 className="font-medium text-text text-sm">
+            Attendance{' '}
+            <span className="text-text-faint font-normal">
               ({attendeeIds.length}/{players.length}{totalGuests > 0 ? ` + ${totalGuests} guest${totalGuests !== 1 ? 's' : ''}` : ''})
             </span>
           </h2>
-          <div className="flex gap-2">
+          <div className="flex gap-1">
             <button
-              onClick={() => { setAttendeeIds(players.map((p) => p.id)); setSaved(false); }}
-              className="text-xs text-gray-500 hover:text-gray-300 px-2 py-1 rounded hover:bg-gray-800 transition-colors"
+              onClick={() => { setAttendeeIds(players.map((p) => p.id)); setDirty(true); }}
+              className="text-xs text-text-faint hover:text-text-muted px-2 py-1 rounded-md hover:bg-surface-3 transition-colors"
             >
               All
             </button>
             <button
-              onClick={() => { setAttendeeIds([]); setSaved(false); }}
-              className="text-xs text-gray-500 hover:text-gray-300 px-2 py-1 rounded hover:bg-gray-800 transition-colors"
+              onClick={() => { setAttendeeIds([]); setDirty(true); }}
+              className="text-xs text-text-faint hover:text-text-muted px-2 py-1 rounded-md hover:bg-surface-3 transition-colors"
             >
               None
             </button>
@@ -116,9 +136,9 @@ export default function SessionDetailPage() {
         </div>
 
         {players.length === 0 ? (
-          <p className="text-gray-500 text-sm">No players yet. Add some in the Players tab.</p>
+          <EmptyState icon={Users} title="No players yet" description="Add some in the Players tab first." />
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {players.map((p) => {
               const checked = attendeeIds.includes(p.id);
               const guests = guestCounts[p.id] ?? 0;
@@ -127,39 +147,43 @@ export default function SessionDetailPage() {
                   key={p.id}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-colors ${
                     checked
-                      ? 'bg-green-950/50 border-green-800'
-                      : 'bg-gray-800/50 border-gray-700 hover:bg-gray-800'
+                      ? 'bg-accent/10 border-accent/30'
+                      : 'bg-surface-3/40 border-border hover:bg-surface-3'
                   }`}
                 >
                   <label className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggle(p.id)}
-                      className="w-4 h-4 accent-green-500 shrink-0"
-                    />
-                    <span className={`text-sm font-medium truncate ${checked ? 'text-green-300' : 'text-gray-300'}`}>
+                    <span
+                      onClick={() => toggle(p.id)}
+                      className={`w-4.5 h-4.5 shrink-0 rounded-md flex items-center justify-center border transition-colors ${
+                        checked ? 'bg-accent border-accent' : 'border-border-strong'
+                      }`}
+                    >
+                      {checked && <Check size={12} weight="bold" className="text-black" />}
+                    </span>
+                    <span className={`text-sm font-medium truncate ${checked ? 'text-text' : 'text-text-muted'}`}>
                       {p.name}
                     </span>
                   </label>
                   {checked && (
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-xs text-gray-500">+1s</span>
+                      <span className="text-xs text-text-faint mr-0.5">+1s</span>
                       <button
                         type="button"
                         onClick={() => setGuestCount(p.id, guests - 1)}
                         disabled={guests === 0}
-                        className="w-6 h-6 flex items-center justify-center rounded-md bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-40 transition-colors"
+                        aria-label={`Decrease guests for ${p.name}`}
+                        className="w-6 h-6 flex items-center justify-center rounded-md bg-surface-3 border border-border text-text-muted hover:bg-border-strong disabled:opacity-40 transition-colors"
                       >
-                        −
+                        <Minus size={11} weight="bold" />
                       </button>
-                      <span className="w-4 text-center text-sm font-semibold text-gray-100">{guests}</span>
+                      <span className="w-4 text-center text-sm font-semibold text-text tabular-nums">{guests}</span>
                       <button
                         type="button"
                         onClick={() => setGuestCount(p.id, guests + 1)}
-                        className="w-6 h-6 flex items-center justify-center rounded-md bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors"
+                        aria-label={`Increase guests for ${p.name}`}
+                        className="w-6 h-6 flex items-center justify-center rounded-md bg-surface-3 border border-border text-text-muted hover:bg-border-strong transition-colors"
                       >
-                        +
+                        <Plus size={11} weight="bold" />
                       </button>
                     </div>
                   )}
@@ -170,16 +194,11 @@ export default function SessionDetailPage() {
         )}
 
         <div className="mt-5 flex items-center gap-3">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors"
-          >
-            {saving ? 'Saving…' : 'Save Attendance'}
-          </button>
-          {saved && <span className="text-green-400 text-sm">Saved ✓</span>}
+          <Button variant="primary" onClick={handleSave} disabled={saving || !dirty}>
+            {saving ? 'Saving…' : dirty ? 'Save Attendance' : 'Saved'}
+          </Button>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

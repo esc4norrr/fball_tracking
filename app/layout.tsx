@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { Geist } from 'next/font/google';
 import './globals.css';
 import AuthGuard from '@/components/AuthGuard';
+import { ToastProvider } from '@/components/ui/Toast';
+import { ConfirmProvider } from '@/components/ui/ConfirmDialog';
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist-sans' });
 
@@ -13,8 +15,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${geist.variable} h-full antialiased dark`}>
-      <body className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950">
-        <AuthGuard>{children}</AuthGuard>
+      <body className="min-h-screen flex flex-col bg-surface text-text">
+        <ToastProvider>
+          <ConfirmProvider>
+            <AuthGuard>{children}</AuthGuard>
+          </ConfirmProvider>
+        </ToastProvider>
       </body>
     </html>
   );

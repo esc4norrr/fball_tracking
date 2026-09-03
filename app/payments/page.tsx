@@ -1,7 +1,17 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { getPlayers, getPayments, addPayment, deletePayment } from '@/lib/db';
-import { Player, Payment } from '@/lib/types';
+import { useEffect, useMemo, useState } from 'react';
+import { getPlayers, getSessions, getPayments, addPayment, deletePayment } from '@/lib/db';
+import { Player, Payment, Session } from '@/lib/types';
+import { computeStats } from '@/lib/stats';
+import { formatAmount, formatRM } from '@/lib/format';
+import { CheckCircle, Funnel, Plus, Receipt, Trash, Wallet } from '@phosphor-icons/react';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Field, Input, Select } from '@/components/ui/Field';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 
 function fmt(date: Date) {
   return date.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -9,14 +19,19 @@ function fmt(date: Date) {
 
 export default function PaymentsPage() {
   const [players, setPlayers] = useState<Player[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ playerId: '', amount: '', date: '', notes: '' });
   const [saving, setSaving] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState('all');
+  const confirm = useConfirm();
+  const toast = useToast();
 
   async function load() {
-    const [pl, pay] = await Promise.all([getPlayers(), getPayments()]);
+    const [pl, sess, pay] = await Promise.all([getPlayers(), getSessions(), getPayments()]);
     setPlayers(pl);
+    setSessions(sess);
     setPayments(pay);
     if (pl.length > 0 && !form.playerId) {
       setForm((f) => ({ ...f, playerId: pl[0].id, date: new Date().toISOString().split('T')[0] }));
@@ -25,6 +40,15 @@ export default function PaymentsPage() {
   }
 
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const stats = useMemo(() => computeStats(players, sessions, payments), [players, sessions, payments]);
+  const statsMap = useMemo(() => Object.fromEntries(stats.map((s) => [s.player.id, s])), [stats]);
+  const selectedStat = statsMap[form.playerId];
+
+  const outstanding = useMemo(
+    () => stats.filter((s) => s.balance < -0.005).sort((a, b) => a.balance - b.balance),
+    [stats]
+  );
 
   async function handleAdd(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -38,135 +62,198 @@ export default function PaymentsPage() {
     });
     setForm((f) => ({ ...f, amount: '', notes: '' }));
     setSaving(false);
+    toast.success('Payment logged');
     const pay = await getPayments();
     setPayments(pay);
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Delete this payment record?')) return;
+  function fillOwed(playerId: string) {
+    const stat = statsMap[playerId];
+    if (!stat || stat.balance >= 0) return;
+    setForm((f) => ({ ...f, playerId, amount: (-stat.balance).toFixed(2).replace(/\.00$/, '') }));
+  }
+
+  async function handleDelete(id: string, playerName: string, amount: number) {
+    const ok = await confirm({
+      title: 'Delete this payment?',
+      description: `${playerName}'s ${formatRM(amount)} record will be removed. This cannot be undone.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
     await deletePayment(id);
     setPayments((prev) => prev.filter((p) => p.id !== id));
+    toast.success('Payment deleted');
   }
 
   const playerMap = Object.fromEntries(players.map((p) => [p.id, p.name]));
-
-  const totals: Record<string, number> = {};
-  payments.forEach((p) => { totals[p.playerId] = (totals[p.playerId] || 0) + p.amount; });
-
-  const inputCls = 'w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500';
+  const visiblePayments = historyFilter === 'all' ? payments : payments.filter((p) => p.playerId === historyFilter);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-      <h1 className="text-2xl font-bold text-gray-100">Payments</h1>
+      <h1 className="text-xl font-semibold text-text">Payments</h1>
 
-      <form onSubmit={handleAdd} className="bg-gray-900 rounded-2xl border border-gray-800 shadow-sm p-5 space-y-4">
-        <h2 className="font-semibold text-gray-100">Log Payment</h2>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">Player</label>
-            <select
-              required
-              value={form.playerId}
-              onChange={(e) => setForm({ ...form, playerId: e.target.value })}
-              className={inputCls}
-            >
-              {players.length === 0 && <option value="">No players yet</option>}
-              {players.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
+      <Card className="p-5">
+        <h2 className="font-medium text-text text-sm mb-4">Log Payment</h2>
+        <form onSubmit={handleAdd} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Player" htmlFor="player">
+              <Select
+                id="player"
+                required
+                value={form.playerId}
+                onChange={(e) => setForm({ ...form, playerId: e.target.value })}
+              >
+                {players.length === 0 && <option value="">No players yet</option>}
+                {players.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </Select>
+              {selectedStat && (
+                <p className={`text-xs mt-1.5 ${selectedStat.balance < -0.005 ? 'text-danger' : 'text-text-faint'}`}>
+                  {selectedStat.balance < -0.005
+                    ? `Owes ${formatRM(-selectedStat.balance)}`
+                    : selectedStat.balance > 0.005
+                    ? `${formatRM(selectedStat.balance)} in credit`
+                    : 'Settled up'}
+                </p>
+              )}
+            </Field>
+            <Field label="Amount (RM)" htmlFor="amount">
+              <Input
+                id="amount"
+                type="number"
+                required
+                min="0.01"
+                step="0.01"
+                value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                placeholder="e.g. 50"
+              />
+              {selectedStat && selectedStat.balance < -0.005 && (
+                <button
+                  type="button"
+                  onClick={() => fillOwed(form.playerId)}
+                  className="text-xs text-accent-text hover:underline mt-1.5"
+                >
+                  Fill owed amount ({formatRM(-selectedStat.balance)})
+                </button>
+              )}
+            </Field>
+            <Field label="Date" htmlFor="date">
+              <Input
+                id="date"
+                type="date"
+                required
+                value={form.date}
+                onChange={(e) => setForm({ ...form, date: e.target.value })}
+              />
+            </Field>
+            <Field label="Notes (optional)" htmlFor="notes">
+              <Input
+                id="notes"
+                type="text"
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder="e.g. Bank transfer"
+              />
+            </Field>
+          </div>
+          <Button type="submit" variant="primary" disabled={saving || players.length === 0}>
+            <Plus size={16} weight="bold" />
+            {saving ? 'Saving…' : 'Log Payment'}
+          </Button>
+        </form>
+      </Card>
+
+      {!loading && (
+        <Card className="p-5">
+          <h2 className="font-medium text-text text-sm mb-3 flex items-center gap-1.5">
+            <Wallet size={15} className="text-text-faint" />
+            Outstanding Balances
+          </h2>
+          {outstanding.length === 0 ? (
+            <p className="text-xs text-text-faint flex items-center gap-1.5">
+              <CheckCircle size={14} className="text-accent-text" />
+              Everyone&apos;s settled up.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {outstanding.map((s) => (
+                <button
+                  key={s.player.id}
+                  onClick={() => fillOwed(s.player.id)}
+                  title={`Fill payment form for ${s.player.name}`}
+                  className="flex items-center gap-2 bg-danger-strong/10 border border-danger-strong/25 hover:border-danger-strong/50 rounded-xl px-3 py-1.5 text-sm transition-colors"
+                >
+                  <span className="font-medium text-text">{s.player.name}</span>
+                  <span className="text-danger tabular-nums">{formatAmount(-s.balance)}</span>
+                </button>
               ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">Amount (RM)</label>
-            <input
-              type="number"
-              required
-              min="0.01"
-              step="0.01"
-              value={form.amount}
-              onChange={(e) => setForm({ ...form, amount: e.target.value })}
-              className={inputCls}
-              placeholder="e.g. 50"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">Date</label>
-            <input
-              type="date"
-              required
-              value={form.date}
-              onChange={(e) => setForm({ ...form, date: e.target.value })}
-              className={inputCls}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">Notes (optional)</label>
-            <input
-              type="text"
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              className={inputCls}
-              placeholder="e.g. Bank transfer"
-            />
-          </div>
-        </div>
-        <button
-          type="submit"
-          disabled={saving || players.length === 0}
-          className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-        >
-          {saving ? 'Saving…' : 'Log Payment'}
-        </button>
-      </form>
+            </div>
+          )}
+        </Card>
+      )}
 
-      {!loading && Object.keys(totals).length > 0 && (
-        <div className="bg-gray-900 rounded-2xl border border-gray-800 shadow-sm p-5">
-          <h2 className="font-semibold text-gray-100 mb-3">Total Paid per Player</h2>
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(totals).map(([pid, total]) => (
-              <div key={pid} className="bg-green-950/50 border border-green-900 rounded-xl px-3 py-2 text-sm">
-                <span className="font-medium text-green-300">{playerMap[pid] || 'Unknown'}</span>
-                <span className="text-green-500 ml-2">RM {total.toFixed(0)}</span>
+      <Card className="overflow-hidden">
+        <div className="px-5 py-3 border-b border-border bg-surface-3/50 flex items-center justify-between gap-3">
+          <span className="text-xs font-medium text-text-faint uppercase tracking-wide">History</span>
+          {!loading && players.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <Funnel size={13} className="text-text-faint" />
+              <select
+                value={historyFilter}
+                onChange={(e) => setHistoryFilter(e.target.value)}
+                className="bg-transparent text-xs text-text-muted focus:outline-none cursor-pointer"
+              >
+                <option value="all">All players</option>
+                {players.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        {loading ? (
+          <div>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between px-5 py-3.5 border-b border-border/60 last:border-0">
+                <Skeleton className="h-3.5 w-40" />
+                <Skeleton className="h-3.5 w-14" />
               </div>
             ))}
           </div>
-        </div>
-      )}
-
-      {loading ? (
-        <div className="text-gray-500 text-sm py-8 text-center">Loading...</div>
-      ) : payments.length === 0 ? (
-        <div className="text-gray-500 text-sm py-8 text-center">No payments logged yet.</div>
-      ) : (
-        <div className="bg-gray-900 rounded-2xl border border-gray-800 shadow-sm overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-800 bg-gray-800/50">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">History</span>
-          </div>
-          {payments.map((p, i) => (
+        ) : visiblePayments.length === 0 ? (
+          <EmptyState
+            icon={Receipt}
+            title={historyFilter === 'all' ? 'No payments logged yet' : `No payments from ${playerMap[historyFilter] ?? 'this player'}`}
+          />
+        ) : (
+          visiblePayments.map((p) => (
             <div
               key={p.id}
-              className={`flex items-center justify-between px-5 py-3.5 ${
-                i < payments.length - 1 ? 'border-b border-gray-800' : ''
-              }`}
+              className="flex items-center justify-between px-5 py-3.5 border-b border-border/60 last:border-0 hover:bg-surface-3/40 transition-colors"
             >
-              <div>
-                <span className="text-sm font-medium text-gray-100">{playerMap[p.playerId] || 'Unknown'}</span>
-                <span className="text-xs text-gray-500 ml-2">{fmt(p.date)}</span>
-                {p.notes && <span className="text-xs text-gray-600 ml-2">· {p.notes}</span>}
+              <div className="min-w-0">
+                <span className="text-sm font-medium text-text">{playerMap[p.playerId] || 'Unknown'}</span>
+                <span className="text-xs text-text-faint ml-2">{fmt(p.date)}</span>
+                {p.notes && <span className="text-xs text-text-faint ml-2">· {p.notes}</span>}
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-semibold text-green-400">RM {p.amount.toFixed(0)}</span>
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="text-sm font-semibold text-accent-text tabular-nums">{formatRM(p.amount)}</span>
                 <button
-                  onClick={() => handleDelete(p.id)}
-                  className="text-gray-600 hover:text-red-400 text-xs px-2 py-1 rounded hover:bg-red-950 transition-colors"
+                  onClick={() => handleDelete(p.id, playerMap[p.playerId] || 'Unknown', p.amount)}
+                  aria-label="Delete payment"
+                  className="p-1.5 rounded-lg text-text-faint hover:text-danger hover:bg-danger-strong/10 transition-colors"
                 >
-                  ✕
+                  <Trash size={14} />
                 </button>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </Card>
     </div>
   );
 }

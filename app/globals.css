@@ -2,3 +2,39 @@
 
 /* Class-based dark mode — .dark on <html> forces dark regardless of OS setting */
 @custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens — single dark theme, locked (see AGENTS.md redesign notes).
+ * Every color the app uses lives here. Change a value once, it updates everywhere.
+ * Neutral: zinc. Accent: emerald ("pitch green"). Semantic: red (danger/owed), amber (guest cost).
+ */
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+
+  --color-surface: #0a0a0b;        /* page background */
+  --color-surface-2: #17171a;      /* card / panel background */
+  --color-surface-3: #212124;      /* hover / elevated / input background */
+
+  --color-border: #26262a;         /* default hairline */
+  --color-border-strong: #38383e;  /* stronger border, active/focus-adjacent */
+
+  --color-text: #f4f4f5;           /* primary text */
+  --color-text-muted: #9f9fa8;     /* secondary text */
+  --color-text-faint: #82828c;     /* tertiary / meta text */
+
+  --color-accent: #22c55e;         /* brand accent */
+  --color-accent-strong: #16a34a;  /* accent hover/active */
+  --color-accent-text: #4ade80;    /* accent text on dark surface (AA contrast) */
+
+  --color-danger: #f87171;         /* red-400, for text on dark surfaces */
+  --color-danger-strong: #dc2626;  /* red-600, passes AA with white text at button size */
+  --color-warn: #fbbf24;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  font-family: var(--font-sans);
+}

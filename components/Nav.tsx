@@ -2,12 +2,21 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { logout } from '@/lib/auth';
+import {
+  SoccerBall,
+  SquaresFour,
+  CalendarBlank,
+  Users,
+  Wallet,
+  SignOut,
+  type Icon,
+} from '@phosphor-icons/react';
 
-const links = [
-  { href: '/', label: 'Dashboard' },
-  { href: '/sessions', label: 'Sessions' },
-  { href: '/players', label: 'Players' },
-  { href: '/payments', label: 'Payments' },
+const links: { href: string; label: string; icon: Icon }[] = [
+  { href: '/', label: 'Dashboard', icon: SquaresFour },
+  { href: '/sessions', label: 'Sessions', icon: CalendarBlank },
+  { href: '/players', label: 'Players', icon: Users },
+  { href: '/payments', label: 'Payments', icon: Wallet },
 ];
 
 export default function Nav() {
@@ -20,28 +29,37 @@ export default function Nav() {
   }
 
   return (
-    <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10">
+    <nav className="bg-surface/95 backdrop-blur border-b border-border sticky top-0 z-20">
       <div className="max-w-5xl mx-auto px-4 flex items-center justify-between h-14">
-        <span className="font-bold text-green-500 text-lg tracking-tight">⚽ Futsal</span>
-        <div className="flex items-center gap-1">
-          {links.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                pathname === l.href
-                  ? 'bg-green-900/40 text-green-400'
-                  : 'text-gray-400 hover:text-gray-100 hover:bg-gray-800'
-              }`}
-            >
-              {l.label}
-            </Link>
-          ))}
+        <Link href="/" className="flex items-center gap-1.5 text-text font-semibold text-sm shrink-0">
+          <SoccerBall size={20} weight="fill" className="text-accent-text" />
+          <span>Futsal</span>
+        </Link>
+        <div className="flex items-center gap-0.5">
+          {links.map((l) => {
+            const active = pathname === l.href;
+            const LinkIcon = l.icon;
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                aria-current={active ? 'page' : undefined}
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  active ? 'bg-accent/15 text-accent-text' : 'text-text-muted hover:text-text hover:bg-surface-3'
+                }`}
+              >
+                <LinkIcon size={16} weight={active ? 'fill' : 'regular'} />
+                <span className="hidden sm:inline">{l.label}</span>
+              </Link>
+            );
+          })}
           <button
             onClick={handleLogout}
-            className="ml-2 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-500 hover:text-red-400 hover:bg-red-950 transition-colors"
+            title="Log out"
+            className="flex items-center gap-1.5 ml-1 px-2.5 sm:px-3 py-1.5 rounded-lg text-sm font-medium text-text-faint hover:text-danger hover:bg-danger-strong/10 transition-colors"
           >
-            Logout
+            <SignOut size={16} />
+            <span className="hidden sm:inline">Logout</span>
           </button>
         </div>
       </div>
